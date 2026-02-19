@@ -4,7 +4,7 @@ from PySide6.QtWidgets import (
     QApplication, QWidget, QLabel, QVBoxLayout, QHBoxLayout,
     QPushButton, QDialog, QFormLayout, QSpinBox, QComboBox
 )
-from PySide6.QtCore import Qt, QTimer, QPoint
+from PySide6.QtCore import Qt, QTimer, QPoint, QMetaType
 from PySide6.QtGui import QFont
 
 CFG = "timer_config.json"
@@ -35,17 +35,17 @@ class ConfigDialog(QDialog):
         self.unit.addItems(["seconds", "minutes"])
         self.unit.setCurrentText(cfg["unit"])
 
-        self.g = QSpinBox(); self.g.setRange(1, 99)
+        self.g: QSpinBox = QSpinBox(); self.g.setRange(1, 99)
         self.g.setValue(int(cfg["green"] * 100))
 
-        self.y = QSpinBox(); self.y.setRange(1, 99)
-        self.y.setValue(int(cfg["yellow"] * 100))
+        self.y_spinbox: QSpinBox = QSpinBox(); self.y_spinbox.setRange(1, 99)
+        self.y_spinbox.setValue(int(cfg["yellow"] * 100))
 
         form = QFormLayout()
         form.addRow("Duration", self.value)
         form.addRow("Unit", self.unit)
         form.addRow("Green ≥ %", self.g)
-        form.addRow("Yellow ≥ %", self.y)
+        form.addRow("Yellow ≥ %", self.y_spinbox)
 
         save = QPushButton("Save")
         save.clicked.connect(self.accept)
@@ -60,7 +60,7 @@ class ConfigDialog(QDialog):
             "Created by JassonCordones"
         )
 
-        shortcuts.setAlignment(Qt.AlignLeft)
+        shortcuts.setAlignment(Qt.AlignmentFlag.AlignLeft)
         shortcuts.setStyleSheet("padding:8px;border-radius:4px;")
         main_layout = QHBoxLayout(self)
         main_layout.addLayout(form)
@@ -74,25 +74,25 @@ class Overlay(QWidget):
         self.running = False
         self.remaining = self.total_seconds()
 
-        self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
-        self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setWindowFlags(Qt.WindowType.FramelessWindowHint | Qt.WindowType.WindowStaysOnTopHint)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
-        self.label = QLabel("", alignment=Qt.AlignCenter)
-        self.label.setFont(QFont("Consolas", 42, QFont.Bold))
+        self.label = QLabel("", alignment=Qt.AlignmentFlag.AlignCenter)
+        self.label.setFont(QFont("Consolas", 42, QFont.Weight.Bold))
 
-        self.units_label = QLabel("", alignment=Qt.AlignCenter)
-        self.units_label.setFont(QFont("Consolas", 12, QFont.Normal))
+        self.units_label = QLabel("", alignment=Qt.AlignmentFlag.AlignCenter)
+        self.units_label.setFont(QFont("Consolas", 12, QFont.Weight.Normal))
 
         btn = lambda t, f: (b := QPushButton(t), b.clicked.connect(f), b)[0]
         self.start_btn = btn("Start", self.start)
         self.pause_btn = btn("Pause", self.pause)
-        self.stop_btn = btn("Stop/reset", self.stop)
+        self.stop_btn = btn("Stop", self.stop)
         self.cfg_btn = btn("⚙", self.open_cfg)
         self.close_btn = btn("✕", self.close)
         button_style = "border-radius:5px;max-width:45px;"
         self.start_btn.setStyleSheet(button_style)
         self.pause_btn.setStyleSheet(button_style)
-        self.stop_btn.setStyleSheet(button_style+"font-size:10px;")
+        self.stop_btn.setStyleSheet(button_style)
         self.cfg_btn.setStyleSheet(button_style)
         self.close_btn.setStyleSheet("background-color:#c1c1c1;color:#e74c3c;border-radius:5px;max-width:45px;")
 
@@ -157,7 +157,7 @@ class Overlay(QWidget):
 
     # -------- Dragging --------
     def mousePressEvent(self, e) -> None:
-        if e.button() == Qt.LeftButton:
+        if e.button() == Qt.MouseButton.LeftButton:
             self.drag_pos = e.globalPosition().toPoint()
 
     def mouseMoveEvent(self, e) -> None:
@@ -171,11 +171,11 @@ class Overlay(QWidget):
 
     # -------- Keyboard --------
     def keyPressEvent(self, e) -> None:
-        if e.key() == Qt.Key_Space:
+        if e.key() == Qt.Key.Key_Space:
             self.pause() if self.running else self.start()
-        elif e.key() == Qt.Key_R:
+        elif e.key() == Qt.Key.Key_R:
             self.stop()
-        elif e.key() == Qt.Key_Escape:
+        elif e.key() == Qt.Key.Key_Escape:
             self.close()
 
     # -------- Config --------
@@ -188,7 +188,7 @@ class Overlay(QWidget):
                 "duration": dlg.value.value(),
                 "unit": dlg.unit.currentText(),
                 "green": dlg.g.value() / 100,
-                "yellow": dlg.y.value() / 100,
+                "yellow": dlg.y_spinbox.value() / 100,
             })
             save_cfg(self.cfg)
             self.stop()
