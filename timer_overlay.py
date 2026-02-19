@@ -1,5 +1,5 @@
 # timer_overlay.py
-import sys, json, os, time
+import sys, json, os, time, signal
 from PySide6.QtWidgets import (
     QApplication, QWidget, QLabel, QVBoxLayout, QHBoxLayout,
     QPushButton, QDialog, QFormLayout, QSpinBox, QComboBox
@@ -41,7 +41,7 @@ class ConfigDialog(QDialog):
         self.y = QSpinBox(); self.y.setRange(1, 99)
         self.y.setValue(int(cfg["yellow"] * 100))
 
-        form = QFormLayout(self)
+        form = QFormLayout()
         form.addRow("Duration", self.value)
         form.addRow("Unit", self.unit)
         form.addRow("Green ≥ %", self.g)
@@ -51,9 +51,20 @@ class ConfigDialog(QDialog):
         save.clicked.connect(self.accept)
         form.addWidget(save)
 
-        label = QLabel("Created by JassonCordones")
-        label.setAlignment(Qt.AlignCenter)
-        form.addRow(label)
+        shortcuts = QLabel(
+            "<b>Shortcuts:</b><br>"
+            "Space bar - Start/Pause<br>"
+            "R - Reset<br>"
+            "Esc - Close"
+            "<span><br><br></span>"
+            "Created by JassonCordones"
+        )
+
+        shortcuts.setAlignment(Qt.AlignLeft)
+        shortcuts.setStyleSheet("padding:8px;border-radius:4px;")
+        main_layout = QHBoxLayout(self)
+        main_layout.addLayout(form)
+        main_layout.addWidget(shortcuts)
 
 # ---------------- Overlay ----------------
 class Overlay(QWidget):
@@ -69,14 +80,24 @@ class Overlay(QWidget):
         self.label = QLabel("", alignment=Qt.AlignCenter)
         self.label.setFont(QFont("Consolas", 42, QFont.Bold))
 
+        self.units_label = QLabel("", alignment=Qt.AlignCenter)
+        self.units_label.setFont(QFont("Consolas", 12, QFont.Normal))
+
         btn = lambda t, f: (b := QPushButton(t), b.clicked.connect(f), b)[0]
         self.start_btn = btn("Start", self.start)
         self.pause_btn = btn("Pause", self.pause)
-        self.stop_btn = btn("Stop", self.stop)
+        self.stop_btn = btn("Stop/reset", self.stop)
         self.cfg_btn = btn("⚙", self.open_cfg)
         self.close_btn = btn("✕", self.close)
+        button_style = "border-radius:5px;max-width:45px;"
+        self.start_btn.setStyleSheet(button_style)
+        self.pause_btn.setStyleSheet(button_style)
+        self.stop_btn.setStyleSheet(button_style+"font-size:10px;")
+        self.cfg_btn.setStyleSheet(button_style)
+        self.close_btn.setStyleSheet("background-color:#c1c1c1;color:#e74c3c;border-radius:5px;max-width:45px;")
 
         bar = QHBoxLayout()
+        bar.setContentsMargins(0,0,0,0)
         for b in (self.start_btn, self.pause_btn, self.stop_btn, self.cfg_btn, self.close_btn):
             bar.addWidget(b)
 
@@ -131,6 +152,7 @@ class Overlay(QWidget):
             color = "#e74c3c"
 
         self.label.setText(f"{r//60:02}:{r%60:02}")
+        self.units_label.setText(self.cfg["unit"])
         self.setStyleSheet(f"background:{color}; border-radius:10px;")
 
     # -------- Dragging --------
@@ -159,6 +181,7 @@ class Overlay(QWidget):
     # -------- Config --------
     def open_cfg(self) -> None:
         dlg = ConfigDialog(self.cfg)
+        dlg.resize(250,150)
         dlg.move(self.pos() + QPoint(-200,0))
         if dlg.exec():
             self.cfg.update({
@@ -175,4 +198,8 @@ app = QApplication(sys.argv)
 w = Overlay()
 w.resize(260, 140)
 w.show()
+def handle_sigint(signum, frame):
+    app.quit()
+
+signal.signal(signal.SIGINT, handle_sigint)
 sys.exit(app.exec())
