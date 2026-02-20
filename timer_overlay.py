@@ -5,7 +5,8 @@ from PySide6.QtWidgets import (
     QPushButton, QDialog, QFormLayout, QSpinBox, QComboBox
 )
 from PySide6.QtCore import Qt, QTimer, QPoint, QMetaType
-from PySide6.QtGui import QFont
+from PySide6.QtGui import QFont, QIcon
+
 
 CFG = "timer_config.json"
 DEFAULT = {
@@ -14,6 +15,11 @@ DEFAULT = {
     "green": 0.6,
     "yellow": 0.3
 }
+
+def resource_path(filename):
+    if hasattr(sys, "_MEIPASS"):
+        return os.path.join(sys._MEIPASS, filename)
+    return os.path.join(os.path.abspath("."), filename)
 
 # ---------------- Config ----------------
 def load_cfg():
@@ -195,6 +201,7 @@ class Overlay(QWidget):
 
 # ---------------- Main ----------------
 app = QApplication(sys.argv)
+app.setWindowIcon(QIcon(resource_path("timer.ico")))
 w = Overlay()
 w.resize(260, 140)
 w.show()
