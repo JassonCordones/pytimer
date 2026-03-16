@@ -55,4 +55,4 @@ dist/
 
 ## License
 
-Specify license here (e.g., MIT, Apache-2.0).
+MIT
