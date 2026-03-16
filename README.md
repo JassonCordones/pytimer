@@ -19,7 +19,7 @@ Lightweight Python-based timer overlay packaged as a standalone executable.
 Clone the repository and install dependencies:
 
 ```bash
-git clone [https://github.com/JassonCordones/pytimer](https://github.com/JassonCordones/pytimer.git)
+git clone https://github.com/JassonCordones/pytimer
 cd pytimer
 pip install -r requirements.txt
 ```
