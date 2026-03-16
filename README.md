@@ -1,7 +1,3 @@
-Below is a clean, production-quality `README.md`. Minimal fluff, complete, correct, and idiomatic.
-
----
-
 # Pytimer
 
 Lightweight Python-based timer overlay packaged as a standalone executable.
