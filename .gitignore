@@ -3,3 +3,5 @@ build/
 dist
 timer_config.json
 *.spec
+
+*.pyc

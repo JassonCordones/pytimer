@@ -5,7 +5,7 @@ from PySide6.QtWidgets import (
     QPushButton, QDialog, QFormLayout, QSpinBox, QComboBox
 )
 from PySide6.QtCore import Qt, QTimer, QPoint, QMetaType
-from PySide6.QtGui import QFont, QIcon
+from PySide6.QtGui import QFont, QIcon, QPixmap
 
 
 CFG = "timer_config.json"
@@ -28,11 +28,27 @@ def load_cfg():
 def save_cfg(cfg):
     json.dump(cfg, open(CFG, "w"), indent=2)
 
+
+
 class ConfigDialog(QDialog):
+    def _sync_limits(self):
+            # yellow can never exceed green
+            self.y_spinbox.setMaximum(self.g.value())
+
+            # optional: auto-clamp if user reduces green below yellow
+            if self.y_spinbox.value() > self.g.value():
+                self.y_spinbox.setValue(self.g.value())
+
     def __init__(self, cfg) -> None:
         super().__init__()
+        
         self.setWindowTitle("Settings")
         self.cfg = cfg
+
+        logo = QLabel()
+        pixmap = QPixmap(resource_path("logo.png"))
+        logo.setPixmap(pixmap.scaled(64, 64, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+        logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.value = QSpinBox(); self.value.setRange(1, 9999)
         self.value.setValue(cfg["duration"])
@@ -46,6 +62,11 @@ class ConfigDialog(QDialog):
 
         self.y_spinbox: QSpinBox = QSpinBox(); self.y_spinbox.setRange(1, 99)
         self.y_spinbox.setValue(int(cfg["yellow"] * 100))
+
+        self.g.valueChanged.connect(self._sync_limits)
+        self.y_spinbox.valueChanged.connect(self._sync_limits)
+        
+        self._sync_limits()
 
         form = QFormLayout()
         form.addRow("Duration", self.value)
@@ -61,21 +82,28 @@ class ConfigDialog(QDialog):
             "<b>Shortcuts:</b><br>"
             "Space bar - Start/Pause<br>"
             "R - Reset<br>"
-            "Esc - Close"
             "<span><br><br></span>"
             "Created by JassonCordones"
         )
 
         shortcuts.setAlignment(Qt.AlignmentFlag.AlignLeft)
         shortcuts.setStyleSheet("padding:8px;border-radius:4px;")
+
+        right_layout = QVBoxLayout()
+        right_layout.addWidget(shortcuts)
+        right_layout.addWidget(logo)
+        
         main_layout = QHBoxLayout(self)
         main_layout.addLayout(form)
-        main_layout.addWidget(shortcuts)
+        main_layout.addLayout(right_layout)
 
 # ---------------- Overlay ----------------
 class Overlay(QWidget):
     def __init__(self):
         super().__init__()
+
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        self.setFocus()
         self.cfg = load_cfg()
         self.running = False
         self.remaining = self.total_seconds()
@@ -105,7 +133,9 @@ class Overlay(QWidget):
         bar = QHBoxLayout()
         bar.setContentsMargins(0,0,0,0)
         for b in (self.start_btn, self.pause_btn, self.stop_btn, self.cfg_btn, self.close_btn):
+            b.setFocusPolicy(Qt.FocusPolicy.NoFocus)
             bar.addWidget(b)
+            
 
         layout = QVBoxLayout(self)
         layout.addWidget(self.label)
@@ -139,25 +169,34 @@ class Overlay(QWidget):
             now = time.time()
             self.remaining -= now - self.last
             self.last = now
-            if self.remaining <= 0:
-                self.remaining = 0
-                self.running = False
+            # if self.remaining <= 0:
+            #     self.remaining = 0
+            #     self.running = False
         self.update_ui()
 
     # -------- UI --------
     def update_ui(self):
-        r = max(0, int(self.remaining))
+        r = int(self.remaining)
         total = self.total_seconds()
-        ratio = r / total if total else 0
+        ratio = max(0, r) / total if total else 0
 
-        if ratio >= self.cfg["green"]:
+        sign = "-" if r < 0 else ""
+        abs_r = abs(r)
+
+        minutes = abs_r // 60
+        seconds = abs_r % 60
+
+        
+        if r < 0:
+            color = "#8e44ad"   # purple for overtime
+        elif ratio >= self.cfg["green"]:
             color = "#2ecc71"
         elif ratio >= self.cfg["yellow"]:
             color = "#f1c40f"
         else:
             color = "#e74c3c"
 
-        self.label.setText(f"{r//60:02}:{r%60:02}")
+        self.label.setText(f"{sign}{minutes:02}:{seconds:02}")
         self.units_label.setText(self.cfg["unit"])
         self.setStyleSheet(f"background:{color}; border-radius:10px;")
 
@@ -165,6 +204,7 @@ class Overlay(QWidget):
     def mousePressEvent(self, e) -> None:
         if e.button() == Qt.MouseButton.LeftButton:
             self.drag_pos = e.globalPosition().toPoint()
+            self.setFocus()
 
     def mouseMoveEvent(self, e) -> None:
         if self.drag_pos:
@@ -181,8 +221,7 @@ class Overlay(QWidget):
             self.pause() if self.running else self.start()
         elif e.key() == Qt.Key.Key_R:
             self.stop()
-        elif e.key() == Qt.Key.Key_Escape:
-            self.close()
+       
 
     # -------- Config --------
     def open_cfg(self) -> None:
@@ -190,14 +229,23 @@ class Overlay(QWidget):
         dlg.resize(250,150)
         dlg.move(self.pos() + QPoint(-200,0))
         if dlg.exec():
+            green = dlg.g.value()
+            yellow = min(dlg.y_spinbox.value(), green)
             self.cfg.update({
                 "duration": dlg.value.value(),
                 "unit": dlg.unit.currentText(),
-                "green": dlg.g.value() / 100,
-                "yellow": dlg.y_spinbox.value() / 100,
+                "green": green / 100,
+                "yellow": yellow / 100,
             })
             save_cfg(self.cfg)
             self.stop()
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.activateWindow()
+        self.raise_()
+        self.setFocus()
+
 
 # ---------------- Main ----------------
 app = QApplication(sys.argv)

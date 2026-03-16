@@ -37,7 +37,7 @@ python timer_overlay.py
 Uses **PyInstaller** to produce a single-file binary without a console window.
 
 ```bash
-pyinstaller --onefile --noconsole timer_overlay.py
+pyinstaller --onefile --noconsole --add-data "timer.ico;." --add-data "logo.png;." --icon=timer.ico timer_overlay.py
 ```
 
 ## Output
